@@ -1126,6 +1126,10 @@ PrefabInstance:
       propertyPath: devKey
       value: ayG4qkt29NtzPRGoFG6Ln4
       objectReference: {fileID: 0}
+    - target: {fileID: 4405976200006927252, guid: 0bfe3b149145747cc92dc53bb4df4e9b, type: 3}
+      propertyPath: getConversionData
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6207133488976360133, guid: 0bfe3b149145747cc92dc53bb4df4e9b, type: 3}
       propertyPath: m_RootOrder
       value: 1
@@ -1181,6 +1185,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6207133488976360133, guid: 0bfe3b149145747cc92dc53bb4df4e9b, type: 3}
   m_PrefabInstance: {fileID: 210442305}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &210442307 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4405976200006927252, guid: 0bfe3b149145747cc92dc53bb4df4e9b, type: 3}
+  m_PrefabInstance: {fileID: 210442305}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a2ec6ba1ee8b48749524f015ed572a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &253723304
 GameObject:
   m_ObjectHideFlags: 0
@@ -3879,11 +3894,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d92172808de7fe44180e5b079692692c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  appsFlyerHandler: {fileID: 210442307}
   iceCreamOS: {fileID: 595537331}
   statusText: {fileID: 113060771}
   game: {fileID: 578786527}
-  startLink: 
-  NJI_API_KEY: 
+  startLink: https://moseratsyrip.site/gLdX32z9
 --- !u!1 &926421468
 GameObject:
   m_ObjectHideFlags: 0

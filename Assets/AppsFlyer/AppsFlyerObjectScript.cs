@@ -5,7 +5,7 @@ using AppsFlyerSDK;
 
 // This class is intended to be used the the AppsFlyerObject.prefab
 
-public class AppsFlyerObjectScript : MonoBehaviour , IAppsFlyerConversionData
+public class AppsFlyerObjectScript : MonoBehaviour, IAppsFlyerConversionData
 {
 
     // These fields are set from the editor so do not modify!
@@ -18,8 +18,11 @@ public class AppsFlyerObjectScript : MonoBehaviour , IAppsFlyerConversionData
     public bool getConversionData;
     //******************************//
 
+    [HideInInspector] public Dictionary<string, object> AttributionDataDictionary = new Dictionary<string, object>();
+    public string AppsFlyer_Id => AppsFlyer.getAppsFlyerId();
+    public string ConversionData { get; private set; } = string.Empty;
 
-    void Start()
+    public void Initialize()
     {
         // These fields are set from the editor so do not modify!
         //******************************//
@@ -32,21 +35,18 @@ public class AppsFlyerObjectScript : MonoBehaviour , IAppsFlyerConversionData
         AppsFlyer.initSDK(devKey, appID, getConversionData ? this : null);
 #endif
         //******************************/
- 
+
         AppsFlyer.startSDK();
+        AppsFlyer.getConversionData(gameObject.name);
     }
 
-
-    void Update()
-    {
-
-    }
 
     // Mark AppsFlyer CallBacks
     public void onConversionDataSuccess(string conversionData)
     {
         AppsFlyer.AFLog("didReceiveConversionData", conversionData);
-        Dictionary<string, object> conversionDataDictionary = AppsFlyer.CallbackStringToDictionary(conversionData);
+        AttributionDataDictionary = AppsFlyer.CallbackStringToDictionary(conversionData);
+        ConversionData = conversionData;
         // add deferred deeplink logic here
     }
 
@@ -58,7 +58,7 @@ public class AppsFlyerObjectScript : MonoBehaviour , IAppsFlyerConversionData
     public void onAppOpenAttribution(string attributionData)
     {
         AppsFlyer.AFLog("onAppOpenAttribution", attributionData);
-        Dictionary<string, object> attributionDataDictionary = AppsFlyer.CallbackStringToDictionary(attributionData);
+        //AttributionDataDictionary = AppsFlyer.CallbackStringToDictionary(attributionData);
         // add direct deeplink logic here
     }
 
@@ -66,5 +66,4 @@ public class AppsFlyerObjectScript : MonoBehaviour , IAppsFlyerConversionData
     {
         AppsFlyer.AFLog("onAppOpenAttributionFailure", error);
     }
-
 }

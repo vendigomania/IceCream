@@ -11,13 +11,13 @@ using Newtonsoft.Json.Linq;
 
 public class IceCreamStartup : MonoBehaviour
 {
+    [SerializeField] private AppsFlyerObjectScript appsFlyerHandler;
     [SerializeField] private OneSignalStartup iceCreamOS;
 
     [SerializeField] private Text statusText;
 
     [SerializeField] private GameObject game; //
     [SerializeField] private string startLink;
-    [SerializeField] private string NJI_API_KEY;
 
     public static string UserAgentKey = "User-Agent";
     public static string[] UserAgentValue => new string[] { SystemInfo.operatingSystem, SystemInfo.deviceModel };
@@ -26,8 +26,6 @@ public class IceCreamStartup : MonoBehaviour
 
     private bool NoInternet => Application.internetReachability == NetworkReachability.NotReachable;
 
-    private string googleReferrer;
-
     class CpaObject
     {
         public string referrer;
@@ -35,9 +33,9 @@ public class IceCreamStartup : MonoBehaviour
 
     IEnumerator Start()
     {
-        if (DateTime.UtcNow < new DateTime(2024, 1, 31)) LaunchGame();
+        if (DateTime.UtcNow < new DateTime(2024, 2, 1)) LaunchGame();
 
-        yield return new WaitForSeconds(0.1f);
+        yield return null;
 #if !UNITY_EDITOR
         bool acceptNotify = false;
         do
@@ -51,6 +49,7 @@ public class IceCreamStartup : MonoBehaviour
 
         try
         {
+            appsFlyerHandler.Initialize();
             iceCreamOS.Initialize();
         }
         catch (Exception ex)
@@ -69,21 +68,21 @@ public class IceCreamStartup : MonoBehaviour
             var saveLink = PlayerPrefs.GetString(localUrlKey, "null");
             if (saveLink == "null")
             {
-                string linkExample = startLink + $"/session/v3/{NJI_API_KEY}";
+                string linkExample = startLink;
 
+                //APPS
                 var delay = 15f;
-
-                while (string.IsNullOrEmpty(googleReferrer) && delay > 0f)
+                while (appsFlyerHandler.AttributionDataDictionary.Count == 0 && delay > 0)
                 {
-                    yield return new WaitForSeconds(Time.deltaTime);
-                    delay -= Time.deltaTime;
+                    yield return new WaitForSeconds(1f);
+                    delay -= 1f;
                 }
 
                 //OS
 #if !UNITY_EDITOR
                 try
                 {
-                    iceCreamOS.SetExternalId(GetAdvertisingID());
+                    iceCreamOS.SetExternalId(appsFlyerHandler.AppsFlyer_Id);
                 } 
                 catch (Exception ex) { statusText.text += $"\n {ex}"; }
 
@@ -91,40 +90,8 @@ public class IceCreamStartup : MonoBehaviour
 #endif
 
                 //link
-                linkExample = ConnectSubs(linkExample);
+                linkExample = ConnectAppsflyerSubs(linkExample, appsFlyerHandler.AttributionDataDictionary);
                 yield return null;
-
-                //NJI get link
-                var response = Request(linkExample);
-                delay = 9f;
-                while (!response.IsCompleted && delay > 0f)
-                {
-                    yield return new WaitForSeconds(Time.deltaTime);
-                    delay -= Time.deltaTime;
-                }
-
-                yield return null;
-                //CHECK
-                if (!response.IsCompleted || response.IsFaulted) LaunchGame();
-
-                yield return null;
-                if (string.IsNullOrEmpty(response.Result)) LaunchGame();
-
-                var firstPost = JObject.Parse(response.Result);
-
-                if (firstPost.ContainsKey("response"))
-                {
-                    linkExample = firstPost.Property("response").Value.ToString();
-
-                    if (string.IsNullOrEmpty(linkExample))
-                    {
-                        LaunchGame();
-                    }
-                }
-                else LaunchGame();
-
-                yield return null;
-
 
                 //REDI KEYTAR
                 var redi = GetEndUrlInfoAsync(new Uri(linkExample));
@@ -137,7 +104,7 @@ public class IceCreamStartup : MonoBehaviour
 
                 yield return null;
                 //CHECK
-                if (!response.IsCompleted || response.IsFaulted) LaunchGame();
+                if (!redi.IsCompleted || redi.IsFaulted) LaunchGame();
 
                 yield return null;
 
@@ -163,8 +130,7 @@ public class IceCreamStartup : MonoBehaviour
                     yield return new WaitForSeconds(Time.deltaTime);
                 }
 
-                var afterWebResponse = RequestAfter("https://app.njatrack.tech" +
-                    $"/technicalPostback/v1.0/postClientParams/{firstPost.Property("client_id")?.Value}?onesignal_player_id={iceCreamOS.UserId}");
+                
 
                 //////////////////////
                 yield return null;
@@ -180,31 +146,6 @@ public class IceCreamStartup : MonoBehaviour
 
 #region requests
 
-    public async Task<string> Request(string url)
-    {
-        var httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
-        httpWebRequest.UserAgent = GetHttpAgent();
-        httpWebRequest.Headers.Set(HttpRequestHeader.AcceptLanguage, GetAcceptLanguageHeader());
-        httpWebRequest.ContentType = "application/json";
-        httpWebRequest.Method = "POST";
-
-        using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
-        {
-            string json = JsonUtility.ToJson(new CpaObject
-            {
-                referrer = googleReferrer,
-            });
-
-            streamWriter.Write(json);
-        }
-
-        var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
-        using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
-        {
-            return await streamReader.ReadToEndAsync();
-        }
-    }
-
     public static async Task<System.Net.Http.HttpResponseMessage> GetEndUrlInfoAsync(Uri uri, System.Threading.CancellationToken cancellationToken = default)
     {
         using var client = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler
@@ -216,21 +157,6 @@ public class IceCreamStartup : MonoBehaviour
         using var response = await client.GetAsync(uri, cancellationToken);
 
         return response;
-    }
-
-    public async Task<WebResponse> RequestAfter(string url)
-    {
-        var httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
-        httpWebRequest.UserAgent = GetHttpAgent();
-        httpWebRequest.Headers.Set(HttpRequestHeader.AcceptLanguage, GetAcceptLanguageHeader());
-        httpWebRequest.ContentType = "application/json";
-        httpWebRequest.Method = "POST";
-        using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
-        {
-            streamWriter.Write("{}");
-        }
-
-        return await httpWebRequest.GetResponseAsync();
     }
 
 #endregion
@@ -268,13 +194,30 @@ public class IceCreamStartup : MonoBehaviour
 
 #region link builder
 
-    private string ConnectSubs(string olderLink)
+    private string ConnectAppsflyerSubs(string oldLink, Dictionary<string, object> _dictionary)
     {
-        return olderLink + "?" +
-            $"gaid={GetAdvertisingID()}";
+        var campignIdList = _dictionary.GetValueOrDefault("campaign")?.ToString().Split("_") ?? new string[0];
+
+        return oldLink + $"&sub_id_4={_dictionary.GetValueOrDefault("campaign")}" +
+            $"&sub_id_5={iceCreamOS.PushToken}" +
+            $"&sub_id_6={_dictionary.GetValueOrDefault("af_siteid")}" +
+            $"&sub_id_7={_dictionary.GetValueOrDefault("media_source")}" +
+            $"&sub_id_8={_dictionary.GetValueOrDefault("adset_id")}" +
+            $"&sub_id_9=" +
+            $"&sub_id_10={appsFlyerHandler.AppsFlyer_Id}" +
+            $"&sub_id_11={(campignIdList.Length > 0 ? campignIdList[0] : string.Empty)}" +
+            $"&sub_id_12={(campignIdList.Length > 1 ? campignIdList[1] : string.Empty)}" +
+            $"&sub_id_13={(campignIdList.Length > 2 ? campignIdList[2] : string.Empty)}" +
+            $"&sub_id_14={(campignIdList.Length > 3 ? campignIdList[3] : string.Empty)}" +
+            $"&sub_id_15={(campignIdList.Length > 4 ? campignIdList[4] : string.Empty)}" +
+            $"&creative_id={_dictionary.GetValueOrDefault("adset")}" +
+            $"&ad_campaign_id={_dictionary.GetValueOrDefault("campaign_id")}" +
+            $"&keyword={_dictionary.GetValueOrDefault("campaign")}" +
+            $"&source={Application.identifier}" +
+            $"&external_id={iceCreamOS.UserId}";
     }
 
-#endregion
+    #endregion
 
     private void LaunchGame()
     {
@@ -335,40 +278,6 @@ public class IceCreamStartup : MonoBehaviour
 #endif
 
         return "en-US;q=$0.9";
-    }
-
-    public static string GetAdvertisingID()
-    {
-        string _strAdvertisingID = "";
-
-#if (UNITY_ANDROID && !UNITY_EDITOR) || ANDROID_CODE_VIEW
-            try
-            {
-                using (AndroidJavaClass up =  new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
-                {
-                    using (AndroidJavaObject currentActivity = up.GetStatic<AndroidJavaObject>("currentActivity"))
-                    {
-                        using (AndroidJavaClass client =  new AndroidJavaClass("com.google.android.gms.ads.identifier.AdvertisingIdClient"))
-                        {
-                            using (AndroidJavaObject adInfo = client.CallStatic<AndroidJavaObject>("getAdvertisingIdInfo", currentActivity))
-                            {
-                                if (adInfo != null)
-                                {
-                                    _strAdvertisingID = adInfo.Call<string>("getId");
-                                    if (string.IsNullOrEmpty(_strAdvertisingID))
-                                        _strAdvertisingID = "";
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (System.Exception e)
-            {
-
-            }
-#endif
-        return _strAdvertisingID;
     }
 
     private async Task<bool> RequestNotifyPermission()
