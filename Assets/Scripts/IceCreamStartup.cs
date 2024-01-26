@@ -7,7 +7,6 @@ using System.Net;
 using System.IO;
 using System.Linq;
 using UnityEngine.UI;
-using Newtonsoft.Json.Linq;
 
 public class IceCreamStartup : MonoBehaviour
 {
