@@ -7,6 +7,8 @@ using System.Net;
 using System.IO;
 using System.Linq;
 using UnityEngine.UI;
+using UnityEngine.iOS;
+using Unity.Advertisement.IosSupport;
 
 public class IceCreamStartup : MonoBehaviour
 {
@@ -32,18 +34,28 @@ public class IceCreamStartup : MonoBehaviour
 
     IEnumerator Start()
     {
-        if (DateTime.UtcNow < new DateTime(2024, 2, 1)) LaunchGame();
+#if !UNITY_EDITOR
+        if (DateTime.UtcNow < new DateTime(2024, 2, 4)) LaunchGame();
+
+        // ѕровер€ем, поддерживает ли устройство отслеживание рекламного идентификатора
+        if (Device.advertisingTrackingEnabled)
+        {
+            // ѕровер€ем текущий статус разрешени€ отслеживани€
+            if (ATTrackingStatusBinding.GetAuthorizationTrackingStatus() == ATTrackingStatusBinding.AuthorizationTrackingStatus.NOT_DETERMINED)
+            {
+                // ≈сли разрешение не определено, запрашиваем разрешение
+                RequestTrackingPermission();
+            }
+            
+            yield return new WaitUntil(() => ATTrackingStatusBinding.GetAuthorizationTrackingStatus() != ATTrackingStatusBinding.AuthorizationTrackingStatus.NOT_DETERMINED);
+        }
+
 
         yield return null;
-#if !UNITY_EDITOR
-        bool acceptNotify = false;
-        do
-        {
-            var permissionRequest = RequestNotifyPermission();
-            yield return new WaitUntil(() => !permissionRequest.IsCompleted);
-            acceptNotify = permissionRequest.Result;
-        }
-        while (!acceptNotify);
+
+        var permissionRequest = RequestNotifyPermission();
+        yield return new WaitUntil(() => permissionRequest.IsCompleted);
+
 #endif
 
         try
@@ -285,4 +297,13 @@ public class IceCreamStartup : MonoBehaviour
 
         return await OneSignalSDK.OneSignal.Notifications.RequestPermissionAsync(true);
     }
+
+    #region ios
+
+    void RequestTrackingPermission()
+    {
+        ATTrackingStatusBinding.RequestAuthorizationTracking();
+    }
+
+    #endregion
 }
